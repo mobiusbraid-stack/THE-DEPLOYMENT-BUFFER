@@ -1,0 +1,46 @@
+# Stage 1: The Fabricator Core (Build Environment)
+FROM node:22-alpine AS fabricator
+
+WORKDIR /usr/src/cydonia-core
+
+# Install lightweight compiler dependencies
+RUN apk add --no-cache tini
+
+COPY package*.json ./
+COPY tsconfig.json ./
+
+# Clean install all dependencies
+RUN npm ci
+
+# Ingest all Fluid Logic Language assets
+COPY . .
+
+# Compile TS source into production JavaScript bytecode
+RUN npm run build
+
+# Stage 2: The Runtime Manifold (Production Substrate)
+FROM node:22-alpine AS runtime
+
+WORKDIR /app
+
+RUN apk add --no-cache tini
+
+# Copy necessary production configurations and artifacts
+COPY package*.json ./
+RUN npm ci --only=production
+
+# Pull compiled fluidic bytecode from the fabricator stage
+COPY --from=fabricator /usr/src/cydonia-core/dist ./dist
+
+# Force absolute un-throttled production optimization flags inside the engine
+ENV NODE_ENV=production
+ENV UV_THREADPOOL_SIZE=64
+
+# Expose the core P2P UDP Gossip and routing interface boundaries
+EXPOSE 39420/udp
+EXPOSE 5001/udp
+EXPOSE 5002/udp
+
+# Execute using tini to correctly manage kernel signals and prevent zombie thread state
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ["node", "dist/index.js"]
