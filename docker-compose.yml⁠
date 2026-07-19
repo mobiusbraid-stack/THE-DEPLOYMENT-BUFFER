@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  cydonia_node_alpha:
+    build:
+      context: .
+      target: runtime
+    container_name: cydonia_mesh_gateway_alpha
+    network_mode: "host"
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '1.0'
+          memory: 512M
+
+  vortex_scope_telemetry:
+    image: nginx:alpine
+    container_name: cydonia_visual_dashboard
+    ports:
+      - "80:80"
+    volumes:
+      - ./dist/public:/usr/share/nginx/html:ro
+    restart: on-failure
+    depends_on:
+      - cydonia_node_alpha
